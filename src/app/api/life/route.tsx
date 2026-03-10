@@ -202,11 +202,11 @@ export async function GET(req: NextRequest) {
 
             {/* --- Block 2: Quote Component --- */}
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#ffffff', gap: '8px', textAlign: 'center', marginTop: '80px', marginBottom: '80px' }}>
-                <div style={{ display: 'flex', fontSize: 24, fontWeight: 600 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#ffffff', gap: '8px', textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', fontSize: 40, fontWeight: 600 }}>
                   <span style={{ color: '#4ADE80' }}>Re</span>st | <span style={{ color: '#4ADE80' }}>Re</span>set | <span style={{ color: '#4ADE80' }}>Re</span>start | <span style={{ color: '#4ADE80' }}>Re</span>focus
                 </div>
-                <div style={{ display: 'flex', fontSize: 20, fontWeight: 400 }}>
+                <div style={{ display: 'flex', fontSize: 24, fontWeight: 400 }}>
                   as &nbsp;<span style={{ color: '#4ADE80' }}>many times</span>&nbsp; as you need to.
                 </div>
               </div>

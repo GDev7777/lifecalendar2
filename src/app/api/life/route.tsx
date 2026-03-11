@@ -51,53 +51,101 @@ export async function GET(req: NextRequest) {
 
     const startOfYearMs = Date.UTC(nowYear, 0, 1);
     const daysPassedThisYear = Math.floor((bangkokTimeMs - startOfYearMs) / msPerDay);
-    const currentOngoingDayIndex = daysPassedThisYear; 
+    const currentOngoingDayIndex = daysPassedThisYear;
     const daysLeftThisYear = Math.max(0, daysInCurrentYear - currentOngoingDayIndex - 1);
-
-    // --- Section 1: Lifetime (Grid exactly 4x10 = 40 cells = 80 semi-circles) ---
-    const rowsGrid1 = 4;
-    const colsGrid1 = 10;
-    const yearsRows = Array.from({ length: rowsGrid1 }).map((_, r) => {
-      return Array.from({ length: colsGrid1 }).map((_, c) => {
-        const cellIndex = r * colsGrid1 + c; // 0 to 39
-        const leftHalfIndex = cellIndex * 2; // e.g. 0
-        const rightHalfIndex = cellIndex * 2 + 1; // e.g. 1
-        
-        const getStatus = (halfIndex: number) => {
-          if (halfIndex < age) return 'past';
-          if (halfIndex === age) return 'current';
-          return 'future';
-        };
-
-        return {
-          left: getStatus(leftHalfIndex),
-          right: getStatus(rightHalfIndex),
-        };
-      });
-    });
-
-    // --- Section 2: Current Year (Days Grid) ---
-    // 1 row = 15 circles
-    const colsGrid2 = 15;
-    const rowsGrid2 = Math.ceil(daysInCurrentYear / colsGrid2);
-    const daysRows = Array.from({ length: rowsGrid2 }).map((_, r) => {
-      return Array.from({ length: colsGrid2 }).map((_, c) => {
-        const dotIndex = r * colsGrid2 + c;
-        if (dotIndex >= daysInCurrentYear) return { status: 'hidden' };
-        
-        let status = 'future';
-        if (dotIndex < currentOngoingDayIndex) status = 'past';
-        else if (dotIndex === currentOngoingDayIndex) status = 'current';
-
-        return { status };
-      });
-    });
 
     // Theme setup
     const accentColor = '#ffffff';
     const dimColor = '#333333';
     const bgColor = '#111111';
     const orangeColor = '#FFA500';
+    const greenColor = '#4ADE80';
+
+    // --- SVG Grid 1: Lifetime ---
+    const totalCells = 40;
+    const cols1 = 10;
+    const size1 = 48;
+    const gap1 = 16;
+    const lifetimeRows = Math.ceil(totalCells / cols1);
+    const grid1Width = cols1 * size1 + (cols1 - 1) * gap1; // 10*48 + 9*16 = 624
+    const grid1Height = lifetimeRows * size1 + (lifetimeRows - 1) * gap1; // 4*48 + 3*16 = 240
+
+    const lifetimeSvgElements = Array.from({ length: totalCells }).map((_, i) => {
+      const col = i % cols1;
+      const row = Math.floor(i / cols1);
+      const x = col * (size1 + gap1);
+      const y = row * (size1 + gap1);
+      
+      const leftHalfIndex = i * 2;
+      const rightHalfIndex = i * 2 + 1;
+
+      const getColors = (halfIndex: number) => {
+        if (halfIndex < age) return { fill: accentColor, stroke: 'transparent', strokeWidth: '0' };
+        if (halfIndex === age) return { fill: orangeColor, stroke: 'transparent', strokeWidth: '0' };
+        return { fill: 'transparent', stroke: dimColor, strokeWidth: '2' };
+      };
+
+      const leftStyle = getColors(leftHalfIndex);
+      const rightStyle = getColors(rightHalfIndex);
+
+      return (
+        <g key={`cell-${i}`} transform={`translate(${x}, ${y})`}>
+          <path 
+            d="M 24 0 A 24 24 0 0 0 24 48 Z" 
+            fill={leftStyle.fill} 
+            stroke={leftStyle.stroke} 
+            strokeWidth={leftStyle.strokeWidth}
+          />
+          <path 
+            d="M 24 0 A 24 24 0 0 1 24 48 Z" 
+            fill={rightStyle.fill} 
+            stroke={rightStyle.stroke} 
+            strokeWidth={rightStyle.strokeWidth}
+          />
+        </g>
+      );
+    });
+
+    // --- SVG Grid 2: Current Year ---
+    const cols2 = 15;
+    const size2 = 20;
+    const gap2 = 12;
+    const yearRows = Math.ceil(daysInCurrentYear / cols2);
+    const grid2Width = cols2 * size2 + (cols2 - 1) * gap2; // 15*20 + 14*12 = 468
+    const grid2Height = yearRows * size2 + (yearRows - 1) * gap2;
+
+    const daysSvgElements = Array.from({ length: daysInCurrentYear }).map((_, i) => {
+      const col = i % cols2;
+      const row = Math.floor(i / cols2);
+      const x = col * (size2 + gap2);
+      const y = row * (size2 + gap2);
+
+      let fill = 'transparent';
+      let stroke = dimColor;
+      let strokeWidth = "2";
+
+      if (i < currentOngoingDayIndex) {
+        fill = accentColor;
+        stroke = 'transparent';
+        strokeWidth = "0";
+      } else if (i === currentOngoingDayIndex) {
+        fill = orangeColor;
+        stroke = 'transparent';
+        strokeWidth = "0";
+      }
+
+      return (
+        <circle 
+          key={`day-${i}`} 
+          cx={x + size2 / 2} 
+          cy={y + size2 / 2} 
+          r={size2 / 2} 
+          fill={fill} 
+          stroke={stroke} 
+          strokeWidth={strokeWidth} 
+        />
+      );
+    });
 
     return new ImageResponse(
       (
@@ -111,8 +159,9 @@ export async function GET(req: NextRequest) {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {/* Strict Bounding Box (Y-axis: 1000 to 2000) Left: 60, Width: 1050 */}
+          {/* Strict Bounding Box */}
           <div style={{ position: 'absolute', top: 1000, left: 60, width: 1050, height: 1150, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start' }}>
+
             {/* --- Block 1: Lifetime Part --- */}
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{
@@ -128,91 +177,52 @@ export async function GET(req: NextRequest) {
                 You have &nbsp;<span style={{ color: orangeColor }}>{daysLeft.toLocaleString()}</span>&nbsp; days left
                 {/* Battery Icon */}
                 <div style={{ display: 'flex', alignItems: 'center', marginLeft: '24px' }}>
-                  <div style={{ 
+                  <div style={{
                     display: 'flex',
-                    width: '64px', 
-                    height: '28px', 
-                    border: `2px solid ${accentColor}`, 
+                    width: '64px',
+                    height: '28px',
+                    border: `2px solid ${accentColor}`,
                     borderRadius: '5px',
                     padding: '3px'
                   }}>
-                    <div style={{ 
+                    <div style={{
                       display: 'flex',
-                      width: `${Math.max(0, Math.min(100, (daysLeft / totalDaysInLife) * 100))}%`, 
-                      height: '100%', 
+                      width: `${Math.max(0, Math.min(100, (daysLeft / totalDaysInLife) * 100))}%`,
+                      height: '100%',
                       backgroundColor: orangeColor,
                       borderRadius: '2px'
                     }} />
                   </div>
-                  <div style={{ 
+                  <div style={{
                     display: 'flex',
-                    width: '5px', 
-                    height: '14px', 
+                    width: '5px',
+                    height: '14px',
                     backgroundColor: accentColor,
                     borderTopRightRadius: '4px',
                     borderBottomRightRadius: '4px'
                   }} />
                 </div>
               </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '16px', // Identical vertical gap for Grid 1
-                alignItems: 'center' 
-              }}>
-                {yearsRows.map((row, r) => (
-                  <div key={r} style={{ 
-                    display: 'flex', 
-                    gap: '16px', // Identical horizontal gap for Grid 1
-                    justifyContent: 'center' 
-                  }}>
-                    {row.map((cell, c) => (
-                      <div key={c} style={{ display: 'flex', width: '48px', height: '48px' }}>
-                        {/* Left Semi-circle */}
-                        <div style={{
-                          display: 'flex',
-                          width: '24px', height: '48px',
-                          backgroundColor: cell.left === 'current' ? orangeColor : (cell.left === 'past' ? accentColor : 'transparent'),
-                          borderTop: `2px solid ${cell.left === 'future' ? dimColor : 'transparent'}`,
-                          borderBottom: `2px solid ${cell.left === 'future' ? dimColor : 'transparent'}`,
-                          borderLeft: `2px solid ${cell.left === 'future' ? dimColor : 'transparent'}`,
-                          borderRight: `1px solid ${cell.left === 'future' ? dimColor : 'transparent'}`,
-                          borderTopLeftRadius: '24px',
-                          borderBottomLeftRadius: '24px'
-                        }} />
-                        {/* Right Semi-circle */}
-                        <div style={{
-                          display: 'flex',
-                          width: '24px', height: '48px',
-                          backgroundColor: cell.right === 'current' ? orangeColor : (cell.right === 'past' ? accentColor : 'transparent'),
-                          borderTop: `2px solid ${cell.right === 'future' ? dimColor : 'transparent'}`,
-                          borderBottom: `2px solid ${cell.right === 'future' ? dimColor : 'transparent'}`,
-                          borderRight: `2px solid ${cell.right === 'future' ? dimColor : 'transparent'}`,
-                          borderLeft: `1px solid ${cell.right === 'future' ? dimColor : 'transparent'}`,
-                          borderTopRightRadius: '24px',
-                          borderBottomRightRadius: '24px'
-                        }} />
-                      </div>
-                    ))}
-                  </div>
-                ))}
+
+              {/* Single SVG for Lifetime Grid */}
+              <div style={{ display: 'flex' }}>
+                <svg width={grid1Width} height={grid1Height} viewBox={`0 0 ${grid1Width} ${grid1Height}`}>
+                  {lifetimeSvgElements}
+                </svg>
               </div>
             </div>
 
             {/* --- Block 2: Quote Component --- */}
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#ffffff', gap: '8px', textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#ffffff', gap: '8px', textAlign: 'center', marginTop: '40px', marginBottom: '40px' }}>
                 <div style={{ display: 'flex', fontSize: 40, fontWeight: 600 }}>
-                  <span style={{ color: '#4ADE80' }}>Re</span>st | <span style={{ color: '#4ADE80' }}>Re</span>set | <span style={{ color: '#4ADE80' }}>Re</span>start | <span style={{ color: '#4ADE80' }}>Re</span>focus
+                  <span style={{ color: greenColor }}>Re</span>st &nbsp;|&nbsp; <span style={{ color: greenColor }}>Re</span>set &nbsp;|&nbsp; <span style={{ color: greenColor }}>Re</span>start &nbsp;|&nbsp; <span style={{ color: greenColor }}>Re</span>focus
                 </div>
                 <div style={{ display: 'flex', fontSize: 24, fontWeight: 400 }}>
-                  as &nbsp;<span style={{ color: '#4ADE80' }}>many times</span>&nbsp; as you need to.
+                  as &nbsp;<span style={{ color: greenColor }}>many times</span>&nbsp; as you need to.
                 </div>
               </div>
             </div>
-
-            
 
             {/* --- Block 3: Current Year Part --- */}
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -228,31 +238,11 @@ export async function GET(req: NextRequest) {
                 You have &nbsp;<span style={{ color: orangeColor }}>{daysLeftThisYear.toLocaleString()}</span>&nbsp; days left in this year
               </div>
 
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '12px', // Identical vertical gap for Grid 2
-                alignItems: 'center' 
-              }}>
-                {daysRows.map((row, r) => (
-                  <div key={r} style={{ 
-                    display: 'flex', 
-                    gap: '12px', // Identical horizontal gap for Grid 2
-                    justifyContent: 'center' 
-                  }}>
-                    {row.map((circle, c) => (
-                       <div key={c} style={{
-                         display: 'flex',
-                         width: '20px',   // Medium-large circles
-                         height: '20px', 
-                         borderRadius: '50%',
-                         backgroundColor: circle.status === 'current' ? orangeColor : (circle.status === 'past' ? accentColor : 'transparent'),
-                         border: circle.status === 'future' ? `2px solid ${dimColor}` : 'none',
-                         opacity: circle.status === 'hidden' ? 0 : 1
-                       }} />
-                    ))}
-                  </div>
-                ))}
+              {/* Single SVG for Current Year Grid */}
+              <div style={{ display: 'flex' }}>
+                <svg width={grid2Width} height={grid2Height} viewBox={`0 0 ${grid2Width} ${grid2Height}`}>
+                  {daysSvgElements}
+                </svg>
               </div>
             </div>
 
